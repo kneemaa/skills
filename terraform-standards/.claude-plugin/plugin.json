@@ -1,0 +1,8 @@
+{
+  "name": "terraform-standards",
+  "description": "Three thin Terraform skills — terraform-authoring, terraform-modules, terraform-review — that all load one canonical standards doc (the spine). Recommend-not-force; provider-agnostic spine plus GCP/AWS/GitHub specifics with an Okta/Datadog/PagerDuty seam.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Nema Darban"
+  }
+}
