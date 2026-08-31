@@ -1,0 +1,99 @@
+name: 'Semantic Release'
+description: 'Automates versioning and GitHub releases based on semantic commit messages'
+
+inputs:
+  github-token:
+    description: 'GitHub token for creating releases'
+    required: true
+    default: ${{ github.token }}
+
+  branches:
+    description: 'Branches that can trigger releases (comma-separated)'
+    required: false
+    default: 'main,master'
+  
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: 'lts/*'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ inputs.node-version }}
+    
+    - name: Install semantic-release and plugins
+      shell: bash
+      run: |
+        mkdir -p semantic-release
+        cd semantic-release
+        npm init -y
+        npm install --save-dev semantic-release semantic-release-major-tag @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github @semantic-release/git @semantic-release/exec conventional-changelog-conventionalcommits
+        cd ..
+    
+    - name: Process branches input
+      shell: bash
+      id: process-branches
+      run: |
+        # Convert comma-separated list to JSON array
+        IFS=',' read -ra BRANCHES <<< "${{ inputs.branches }}"
+        JSON_BRANCHES="["
+        for i in "${!BRANCHES[@]}"; do
+          if [ $i -gt 0 ]; then
+            JSON_BRANCHES+=", "
+          fi
+          JSON_BRANCHES+="\"${BRANCHES[$i]}\""
+        done
+        JSON_BRANCHES+="]"
+        echo "branches=$JSON_BRANCHES" >> $GITHUB_OUTPUT
+    
+    - name: Create release config
+      shell: bash
+      run: |
+        cat > semantic-release/.releaserc.json << EOL
+        {
+          "branches": ${{ steps.process-branches.outputs.branches }},
+          "plugins": [
+            ["@semantic-release/commit-analyzer", {
+              "preset": "conventionalcommits"
+            }],
+            ["@semantic-release/release-notes-generator", {
+              "preset": "conventionalcommits"
+            }],
+            "semantic-release-major-tag",
+            ["@semantic-release/github", {
+              "successComment": "This PR is included in version \${nextRelease.version}",
+              "failTitle": false,
+              "failComment": false,
+              "releasedLabels": false
+            }],
+            [
+              "@semantic-release/git",
+              {
+                "assets": [],
+                "message": "chore(release): \${nextRelease.version} [skip ci]\n\n\${nextRelease.notes}"
+              }
+            ]
+          ]
+        }
+        EOL
+    
+    - name: Run Semantic Release
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      working-directory: semantic-release
+      run: |
+        npx semantic-release --no-ci
+
+branding:
+  icon: 'box'
+  color: 'purple'

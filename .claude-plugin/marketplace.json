@@ -1,0 +1,13 @@
+{
+  "name": "kneemaa-skills",
+  "owner": {
+    "name": "Nema Darban"
+  },
+  "plugins": [
+    {
+      "name": "terraform-standards",
+      "source": "./terraform-standards",
+      "description": "Terraform authoring, module-design, and review skills over one canonical standards spine (recommend-not-force)."
+    }
+  ]
+}

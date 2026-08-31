@@ -1,0 +1,21 @@
+name: Release Version
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write      # For creating releases
+      pull-requests: write # For commenting on PRs
+      
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        
+      # Using an action from the local repository
+      - name: Semantic Release
+        uses: ./.github/actions/semantic-release

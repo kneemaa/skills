@@ -1,0 +1,124 @@
+name: semantic-pull-request-title-check
+description: Checks for a valid Semantic Pull Request title
+inputs:
+  github-token:
+    description: "GitHub token used to read the PR and post sticky comments"
+    required: false
+    default: ${{ github.token }}
+  header-pattern:
+    description: "Regex pattern for validating PR title format"
+    required: false
+    default: '^(\w*)(?:\(([\w$.\-*/, ]*)\))?: (.*)$'
+  header-pattern-correspondence:
+    description: "Comma-separated list of regex groups correspondence"
+    required: false
+    default: 'type, scope, subject'
+  error-message:
+    description: "Custom error message template to display when PR title validation fails. Use default message if not specified."
+    required: false
+    default: |
+      Hey there and thank you for opening this pull request!
+
+      We require pull request titles to follow the [Conventional Commits specification](https://www.conventionalcommits.org/en/v1.0.0/) and it looks like your proposed title needs to be adjusted.
+  help-text:
+    description: "Help text appended to PR title validation failure comments to guide users on valid title formats"
+    required: false
+    default: |
+      **Examples:**
+      - `feat: add new login feature`
+      - `fix(api): resolve authentication bug`
+      - `docs(readme): update installation steps`
+
+runs:
+  using: composite
+  steps:
+    - name: Lint PR Title
+      uses: amannn/action-semantic-pull-request@v6
+      id: lint_pr_title
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      with:
+        ignoreLabels: |
+          bot
+          ignore-semantic-pull-request
+          ignore-spr
+        headerPattern: ${{ inputs.header-pattern }}
+        headerPatternCorrespondence: ${{ inputs.header-pattern-correspondence }}
+        types: |
+          feat
+          proj
+          fix
+          docs
+          style
+          refactor
+          perf
+          test
+          build
+          ci
+          chore
+          revert
+          release
+
+    - name: Diagnose PR Title
+      if: always() && steps.lint_pr_title.outputs.error_message != null
+      id: diagnose_pr_title
+      shell: bash
+      env:
+        PR_TITLE: ${{ github.event.pull_request.title }}
+        HEADER_PATTERN: ${{ inputs.header-pattern }}
+      run: |
+        DIAGNOSTIC=$(bash "${{ github.action_path }}/scripts/diagnose-pr-title.sh" \
+          "$PR_TITLE" \
+          "$HEADER_PATTERN" || true)
+        {
+          echo "diagnostic<<EOF"
+          echo "$DIAGNOSTIC"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Trim Lint Error
+      if: always() && steps.lint_pr_title.outputs.error_message != null
+      id: trim_lint_error
+      shell: bash
+      env:
+        LINT_ERROR: ${{ steps.lint_pr_title.outputs.error_message }}
+      run: |
+        TRIMMED_ERROR=$(echo "$LINT_ERROR" | perl -0pe 's/\n*Available types:.*//s')
+        {
+          echo "trimmed_error<<EOF"
+          echo "$TRIMMED_ERROR"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Build Comment Body
+      if: always()
+      id: build_comment
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        LINT_ERROR: ${{ steps.trim_lint_error.outputs.trimmed_error }}
+        DIAGNOSTIC: ${{ steps.diagnose_pr_title.outputs.diagnostic }}
+        ERROR_MESSAGE: ${{ inputs.error-message }}
+        HELP_TEXT: ${{ inputs.help-text }}
+      run: |
+        BODY=$(cd "$ACTION_PATH/scripts" && go run build-comment.go)
+        {
+          echo "body<<EOF"
+          echo "$BODY"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Create PR Title Lint Error Comment
+      uses: marocchino/sticky-pull-request-comment@v2
+      if: always() && steps.build_comment.outputs.has_content == 'true'
+      with:
+        header: pr-title-lint-error
+        message: ${{ steps.build_comment.outputs.body }}
+
+    # Hide the comment when there is nothing to show
+    - name: Hide PR Title Lint Error Comment
+      if: always() && steps.build_comment.outputs.has_content != 'true'
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        header: pr-title-lint-error
+        hide: true
