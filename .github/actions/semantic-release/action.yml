@@ -36,7 +36,10 @@ runs:
         mkdir -p semantic-release
         cd semantic-release
         npm init -y
-        npm install --save-dev semantic-release semantic-release-major-tag @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github @semantic-release/git @semantic-release/exec
+        # Pin the conventionalcommits preset to v8: the commit-analyzer and
+        # release-notes-generator plugins use conventional-changelog-writer@8,
+        # and preset v9+ requires writer@9 (mismatch breaks generateNotes).
+        npm install --save-dev semantic-release semantic-release-major-tag @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github @semantic-release/git @semantic-release/exec 'conventional-changelog-conventionalcommits@^8.0.0'
         cd ..
     
     - name: Process branches input
