@@ -1,1 +1,8 @@
 .DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Go build artifacts (the scripts dir is a `main` package)
+/.github/actions/lint-semantic-pull-request/scripts/scripts

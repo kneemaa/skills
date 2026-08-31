@@ -50,3 +50,20 @@ terraform-standards/                # a plugin
 ```
 
 Each skill's `SKILL.md` links the spine with a relative path (`../../standards/…`) that stays inside the plugin, so the whole plugin installs as one self-contained unit.
+
+## Development
+
+CI (`.github/workflows/validate.yml`) runs on every PR and validates the things that fail silently in a plugin marketplace:
+
+- **Manifests** — `marketplace.json` and each `plugin.json` are valid JSON, carry their required keys, each plugin `source` resolves, and names line up.
+- **Skills** — every `SKILL.md` has valid YAML frontmatter with a `name` that matches its directory.
+- **Links** — every relative Markdown link (the `../../standards/…` spine references) resolves on disk.
+- **Go helper** — the PR-title action's Go code is `gofmt`-clean, vets, and passes `go test`.
+
+Run the same checks locally before pushing:
+
+```
+pip install pyyaml    # one-time, for the validator
+make check            # runs validate (manifests/skills/links) + go-check
+```
+
